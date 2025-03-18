@@ -16,6 +16,7 @@ type Client interface {
 	Subscribe(ctx context.Context, channels ...string) *redis.PubSub
 	redis.Cmdable
 	Close() error
+	AddHook(hook redis.Hook)
 }
 
 // Redis 配置项
@@ -34,6 +35,8 @@ type Config struct {
 	PoolSize int `mapstructure:"pool_size"`
 	// 连接最大可用时间
 	MaxConnAge int `mapstructure:"max_conn_age"`
+	// 键前缀
+	Prefix string `mapstructure:"prefix"`
 }
 
 // New 新建redis实例
@@ -75,6 +78,9 @@ func New(conf Config) Client {
 				log.Println("redis connection failed,retry...")
 				time.Sleep(time.Second * 5)
 			} else {
+				if conf.Prefix != "" {
+					rdb.AddHook(&prefixHook{Prefix: config.Prefix})
+				}
 				return rdb
 			}
 		}
@@ -94,6 +100,9 @@ func New(conf Config) Client {
 				log.Println("redis connection failed,retry...")
 				time.Sleep(time.Second * 5)
 			} else {
+				if conf.Prefix != "" {
+					rdb.AddHook(&prefixHook{Prefix: conf.Prefix})
+				}
 				return rdb
 			}
 		}
