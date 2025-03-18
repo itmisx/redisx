@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 // Redis接口定义
@@ -66,12 +66,12 @@ func New(conf Config) Client {
 		for {
 			// 集群
 			rdb := redis.NewClusterClient(&redis.ClusterOptions{
-				Addrs:        hostMembers,
-				Password:     config.Password,
-				MinIdleConns: config.MinIdleConns,
-				IdleTimeout:  time.Second * time.Duration(config.IdleTimeout),
-				PoolSize:     config.PoolSize,
-				MaxConnAge:   time.Second * time.Duration(config.MaxConnAge),
+				Addrs:           hostMembers,
+				Password:        config.Password,
+				MinIdleConns:    config.MinIdleConns,
+				ConnMaxIdleTime: time.Second * time.Duration(config.IdleTimeout),
+				PoolSize:        config.PoolSize,
+				ConnMaxLifetime: time.Second * time.Duration(config.MaxConnAge),
 			})
 			res, err := rdb.Ping(ctx).Result()
 			if strings.ToLower(res) != "pong" || err != nil {
@@ -87,13 +87,13 @@ func New(conf Config) Client {
 	} else {
 		for {
 			rdb := redis.NewClient(&redis.Options{
-				Addr:         config.Host + ":" + config.Port,
-				Password:     config.Password,
-				DB:           config.Database,
-				MinIdleConns: config.MinIdleConns,
-				IdleTimeout:  time.Second * time.Duration(config.IdleTimeout),
-				PoolSize:     config.PoolSize,
-				MaxConnAge:   time.Second * time.Duration(config.MaxConnAge),
+				Addr:            config.Host + ":" + config.Port,
+				Password:        config.Password,
+				DB:              config.Database,
+				MinIdleConns:    config.MinIdleConns,
+				ConnMaxIdleTime: time.Second * time.Duration(config.IdleTimeout),
+				PoolSize:        config.PoolSize,
+				ConnMaxLifetime: time.Second * time.Duration(config.MaxConnAge),
 			})
 			res, err := rdb.Ping(ctx).Result()
 			if strings.ToLower(res) != "pong" || err != nil {

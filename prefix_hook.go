@@ -2,14 +2,11 @@ package redisx
 
 import (
 	"context"
+	"net"
 	"strings"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
-
-type prefixHook struct {
-	Prefix string
-}
 
 // 支持多个 key 的命令
 var multiKeyCmds = map[string]bool{
@@ -59,24 +56,38 @@ func (h *prefixHook) addPrefix(cmd redis.Cmder) {
 	}
 }
 
-// BeforeProcess 在执行 Redis 命令前，修改 key 以添加前缀
-func (h *prefixHook) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
-	h.addPrefix(cmd)
-	return ctx, nil
-}
-func (h *prefixHook) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
-	return nil
+type prefixHook struct {
+	Prefix string
 }
 
-// BeforeProcessPipeline 处理管道命令
-func (h *prefixHook) BeforeProcessPipeline(ctx context.Context, cmds []redis.Cmder) (context.Context, error) {
-	for _, cmd := range cmds {
-		h.addPrefix(cmd)
+func (h *prefixHook) DialHook(next redis.DialHook) redis.DialHook {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return next(ctx, network, addr)
 	}
-	return ctx, nil
 }
 
-// BeforeProcessPipeline 处理管道命令
-func (h *prefixHook) AfterProcessPipeline(ctx context.Context, cmds []redis.Cmder) error {
-	return nil
+func (h *prefixHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		// 修改命令参数
+		if len(cmd.Args()) > 1 {
+			if key, ok := cmd.Args()[1].(string); ok {
+				cmd.Args()[1] = h.Prefix + key
+			}
+		}
+		return next(ctx, cmd) // 继续执行命令
+	}
+}
+
+func (h *prefixHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return func(ctx context.Context, cmds []redis.Cmder) error {
+		// 修改所有 Pipeline 里的 Key
+		for _, cmd := range cmds {
+			if len(cmd.Args()) > 1 {
+				if key, ok := cmd.Args()[1].(string); ok {
+					cmd.Args()[1] = h.Prefix + key
+				}
+			}
+		}
+		return next(ctx, cmds)
+	}
 }
