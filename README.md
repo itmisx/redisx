@@ -26,6 +26,8 @@ type Config struct {
     PoolSize int `mapstructure:"pool_size"`
     // 连接最大可用时间
     MaxConnAge int `mapstructure:"max_conn_age"`
+    // 键前缀
+    Prefix string `mapstructure:"prefix"`
 }
 ```
 
