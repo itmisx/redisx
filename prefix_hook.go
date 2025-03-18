@@ -68,12 +68,7 @@ func (h *prefixHook) DialHook(next redis.DialHook) redis.DialHook {
 
 func (h *prefixHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 	return func(ctx context.Context, cmd redis.Cmder) error {
-		// 修改命令参数
-		if len(cmd.Args()) > 1 {
-			if key, ok := cmd.Args()[1].(string); ok {
-				cmd.Args()[1] = h.Prefix + key
-			}
-		}
+		h.addPrefix(cmd)
 		return next(ctx, cmd) // 继续执行命令
 	}
 }
@@ -82,11 +77,7 @@ func (h *prefixHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.P
 	return func(ctx context.Context, cmds []redis.Cmder) error {
 		// 修改所有 Pipeline 里的 Key
 		for _, cmd := range cmds {
-			if len(cmd.Args()) > 1 {
-				if key, ok := cmd.Args()[1].(string); ok {
-					cmd.Args()[1] = h.Prefix + key
-				}
-			}
+			h.addPrefix(cmd)
 		}
 		return next(ctx, cmds)
 	}

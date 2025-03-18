@@ -13,7 +13,7 @@ func TestRedisx(*testing.T) {
 		Host:     "127.0.0.1",
 		Port:     "16379",
 		Protocol: "tcp",
-		Prefix:   "prod:",
+		Prefix:   "test:",
 	}
 	// 新建实例
 	rdb := New(config)
