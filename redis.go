@@ -9,10 +9,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// Redis接口定义
-// 因要兼容单例和集群，所以需定义接口，来兼容
-// 接口定义了什么方法，外部才可以调用什么方法
-
 // Redis 配置项
 type Config struct {
 	Addrs        []string `mapstructure:"addrs"`          // 连接地址。多个为集群
