@@ -10,10 +10,8 @@ import (
 func TestRedisx(*testing.T) {
 	// 配置
 	config := Config{
-		Host:     "127.0.0.1",
-		Port:     "16379",
-		Protocol: "tcp",
-		Prefix:   "test:",
+		Addrs:  []string{"127.0.0.1:16379"},
+		Prefix: "test:",
 	}
 	// 新建实例
 	rdb := New(config)

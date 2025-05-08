@@ -12,39 +12,22 @@ import (
 // Redis接口定义
 // 因要兼容单例和集群，所以需定义接口，来兼容
 // 接口定义了什么方法，外部才可以调用什么方法
-type Client interface {
-	Subscribe(ctx context.Context, channels ...string) *redis.PubSub
-	redis.Cmdable
-	Close() error
-	AddHook(hook redis.Hook)
-}
 
 // Redis 配置项
 type Config struct {
-	Cluster  bool   `mapstructure:"cluster" `
-	Host     string `mapstructure:"host" `
-	Port     string `mapstructure:"port" `
-	Password string `mapstructure:"password"`
-	Protocol string `mapstructure:"protocol"`
-	Database int    `mapstructure:"database"`
-	// 最小空闲连接
-	MinIdleConns int `mapstructure:"min_idle_conns"`
-	// 空闲时间
-	IdleTimeout int `mapstructure:"idle_timeout"`
-	// 连接池大小
-	PoolSize int `mapstructure:"pool_size"`
-	// 连接最大可用时间
-	MaxConnAge int `mapstructure:"max_conn_age"`
-	// 键前缀
-	Prefix string `mapstructure:"prefix"`
+	Addrs        []string `mapstructure:"addrs"`          // 连接地址。多个为集群
+	MasterName   string   `mapstructure:"master_name"`    // 主节点名称，用于哨兵模式
+	Password     string   `mapstructure:"password"`       // 密码
+	DB           int      `mapstructure:"db"`             // 默认连接的数据库，仅支持单机模式
+	MinIdleConns int      `mapstructure:"min_idle_conns"` // 最小空闲连接
+	IdleTimeout  int      `mapstructure:"idle_timeout"`   // 空闲时间
+	PoolSize     int      `mapstructure:"pool_size"`      // 连接池大小
+	MaxConnAge   int      `mapstructure:"max_conn_age"`   // 连接最大可用时间
+	Prefix       string   `mapstructure:"prefix"`         // 键前缀
 }
 
 // New 新建redis实例
-func New(conf Config) Client {
-	config := conf
-	ctx := context.Background()
-	hostMembers := strings.Split(config.Host, ",")
-
+func New(conf Config) redis.UniversalClient {
 	// 默认闲置连接
 	if conf.MinIdleConns == 0 {
 		conf.MinIdleConns = 2
@@ -61,50 +44,29 @@ func New(conf Config) Client {
 	if conf.MaxConnAge == 0 || conf.MaxConnAge > 3600 {
 		conf.MaxConnAge = 3600
 	}
-
-	if conf.Cluster || len(hostMembers) > 1 {
-		for {
-			// 集群
-			rdb := redis.NewClusterClient(&redis.ClusterOptions{
-				Addrs:           hostMembers,
-				Password:        config.Password,
-				MinIdleConns:    config.MinIdleConns,
-				ConnMaxIdleTime: time.Second * time.Duration(config.IdleTimeout),
-				PoolSize:        config.PoolSize,
-				ConnMaxLifetime: time.Second * time.Duration(config.MaxConnAge),
-			})
-			res, err := rdb.Ping(ctx).Result()
-			if strings.ToLower(res) != "pong" || err != nil {
-				log.Println("redis connection failed,retry...")
-				time.Sleep(time.Second * 5)
-			} else {
-				if conf.Prefix != "" {
-					rdb.AddHook(&prefixHook{Prefix: config.Prefix})
-				}
-				return rdb
+	for {
+		rdb := redis.NewUniversalClient(&redis.UniversalOptions{
+			Addrs:           conf.Addrs,
+			MasterName:      conf.MasterName,
+			Password:        conf.Password,
+			DB:              conf.DB,
+			MinIdleConns:    conf.MinIdleConns,
+			ConnMaxIdleTime: time.Second * time.Duration(conf.IdleTimeout),
+			PoolSize:        conf.PoolSize,
+			ConnMaxLifetime: time.Second * time.Duration(conf.MaxConnAge),
+			DialTimeout:     time.Second * 5,
+		})
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		res, err := rdb.Ping(ctx).Result()
+		cancel()
+		if strings.ToLower(res) != "pong" || err != nil {
+			log.Println("redis connection failed,retry...")
+			time.Sleep(time.Second * 5)
+		} else {
+			if conf.Prefix != "" {
+				rdb.AddHook(&prefixHook{Prefix: conf.Prefix})
 			}
-		}
-	} else {
-		for {
-			rdb := redis.NewClient(&redis.Options{
-				Addr:            config.Host + ":" + config.Port,
-				Password:        config.Password,
-				DB:              config.Database,
-				MinIdleConns:    config.MinIdleConns,
-				ConnMaxIdleTime: time.Second * time.Duration(config.IdleTimeout),
-				PoolSize:        config.PoolSize,
-				ConnMaxLifetime: time.Second * time.Duration(config.MaxConnAge),
-			})
-			res, err := rdb.Ping(ctx).Result()
-			if strings.ToLower(res) != "pong" || err != nil {
-				log.Println("redis connection failed,retry...")
-				time.Sleep(time.Second * 5)
-			} else {
-				if conf.Prefix != "" {
-					rdb.AddHook(&prefixHook{Prefix: conf.Prefix})
-				}
-				return rdb
-			}
+			return rdb
 		}
 	}
 }
