@@ -6,28 +6,15 @@
 
 ```go
 type Config struct {
-    // 是否为集群模式
-    Cluster  bool   `mapstructure:"cluster" `
-    // 主机
-    Host     string `mapstructure:"host" `
-    // 端口
-    Port     string `mapstructure:"port" `
-    // 密码
-    Password string `mapstructure:"password"`
-    // 连接协议
-    Protocol string `mapstructure:"protocol"`
-    // 初始连接的数据库
-    Database int    `mapstructure:"database"`
-    // 最小空闲连接
-    MinIdleConns int `mapstructure:"min_idle_conns"`
-    // 空闲时间
-    IdleTimeout int `mapstructure:"idle_timeout"`
-    // 连接池大小
-    PoolSize int `mapstructure:"pool_size"`
-    // 连接最大可用时间
-    MaxConnAge int `mapstructure:"max_conn_age"`
-    // 键前缀
-    Prefix string `mapstructure:"prefix"`
+	Addrs        []string `mapstructure:"addrs"`          // 连接地址。多个为集群
+	MasterName   string   `mapstructure:"master_name"`    // 主节点名称，用于哨兵模式
+	Password     string   `mapstructure:"password"`       // 密码
+	DB           int      `mapstructure:"db"`             // 默认连接的数据库，仅支持单机模式
+	MinIdleConns int      `mapstructure:"min_idle_conns"` // 最小空闲连接
+	IdleTimeout  int      `mapstructure:"idle_timeout"`   // 空闲时间
+	PoolSize     int      `mapstructure:"pool_size"`      // 连接池大小
+	MaxConnAge   int      `mapstructure:"max_conn_age"`   // 连接最大可用时间
+	Prefix       string   `mapstructure:"prefix"`         // 键前缀
 }
 ```
 
